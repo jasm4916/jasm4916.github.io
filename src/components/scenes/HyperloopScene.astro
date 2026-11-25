@@ -1,0 +1,89 @@
+---
+// CU Hyperloop: the site I built, drawn as a browser window, and in it the club's small-scale TBM
+// boring through the ground. The ground and tunnel rings slide past as the machine advances.
+interface Props { metric?: { value: number; suffix: string; label: string } }
+const { metric } = Astro.props;
+const P = 96; // repeat period of the scrolling ground, in px
+const pebbles: { x: number; y: number; r: number }[] = [];
+for (let k = 0; k < 9; k++) {
+  for (let i = 0; i < 9; i++) {
+    const x = 32 + k * P + ((i * 37) % P);
+    const y = 186 + ((i * 53) % 140); // same pattern every period, so the scroll loops seamlessly
+    pebbles.push({ x, y, r: 1.1 + ((i * 7) % 3) * 0.55 });
+  }
+}
+const rings = Array.from({ length: 16 }, (_, i) => 32 + i * 24);
+const dust = Array.from({ length: 10 }, (_, i) => ({ y: 240 + ((i * 13) % 42), d: (i * 0.17) % 1.6 }));
+---
+<svg class="scene loop" viewBox="0 0 640 440" role="img" aria-label="Animation: the CU Hyperloop website in a browser window, showing the club's small-scale tunnel boring machine boring through the ground.">
+  <defs><clipPath id="hl-ground"><rect x="33" y="177" width="574" height="156" /></clipPath></defs>
+  <g class="neon">
+    <rect class="draw" pathLength="1" x="20" y="20" width="600" height="400" rx="12" />
+    <path class="draw" pathLength="1" d="M20 56 H620" stroke-opacity=".6" />
+    <rect class="draw" pathLength="1" x="150" y="30" width="300" height="17" rx="8" stroke-opacity=".6" />
+  </g>
+  <circle cx="40" cy="38" r="4" class="dot" /><circle cx="56" cy="38" r="4" class="dot" /><circle cx="72" cy="38" r="4" class="dot" />
+  <text x="300" y="42" text-anchor="middle" class="t dim">cuhyperloop.org</text>
+
+  <g clip-path="url(#hl-ground)">
+    <g class="soil">{pebbles.map((p) => <circle cx={p.x} cy={p.y} r={p.r} />)}</g>
+    <rect x="20" y="236" width="372" height="48" class="bore" />
+    <g class="rings">{rings.map((x) => <path d={`M${x} 238 V282`} />)}</g>
+    <path class="neon-thin" d="M20 236 H392 M20 284 H392" />
+  </g>
+  <path class="surface" d="M32 176 H608" />
+  <path class="grass" d={Array.from({ length: 24 }, (_, i) => `M${44 + i * 24} 176 l3 -6 l3 6`).join(' ')} />
+
+  <!-- the club's TBM -->
+  <g class="tbm-side neon">
+    <rect x="272" y="246" width="26" height="28" rx="3" stroke-opacity=".7" />
+    <rect x="302" y="244" width="30" height="32" rx="3" stroke-opacity=".8" />
+    <path d="M298 260 H302 M332 260 H338" />
+    <rect x="338" y="236" width="110" height="48" rx="8" />
+    <path d="M352 236 V284 M396 236 V284" stroke-opacity=".45" />
+    <path d="M448 238 Q464 242 464 260 Q464 278 448 282" />
+    <path class="teeth" d="M470 238 V282" />
+  </g>
+  <g class="dust">{dust.map((p) => <circle cx="468" cy={p.y} r="1.6" style={`--d:${p.d}s`} />)}</g>
+  <text x="338" y="226" class="t">CU HYPERLOOP TBM</text>
+
+  {metric && (
+    <g class="metric">
+      <text x="44" y="118" class="num" data-count={metric.value} data-suffix={metric.suffix}>+{metric.value}{metric.suffix}</text>
+      <text x="46" y="144" class="t">{metric.label}</text>
+    </g>
+  )}
+  <g class="nav-mock">
+    <path d="M44 362 H164 M44 382 H124 M44 402 H144" class="ghost" />
+    <rect x="452" y="356" width="140" height="34" rx="6" class="cta" />
+    <text x="522" y="378" text-anchor="middle" class="t">JOIN THE TEAM</text>
+  </g>
+</svg>
+
+<style>
+  .loop { --c: #f06bd0; width: 100%; height: auto; display: block; }
+  .neon { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 7px color-mix(in srgb, var(--c) 45%, transparent)); }
+  .neon-thin { fill: none; stroke: var(--c); stroke-width: 1.4; filter: drop-shadow(0 0 3px var(--c)); }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.6s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .dot { fill: #2c2f34; }
+  .t { font-family: var(--f-mono); font-size: 11px; fill: var(--c); }
+  .t.dim { fill: #8d939b; }
+  .soil circle { fill: color-mix(in srgb, var(--c) 45%, #3a3e45); }
+  .soil, .rings { animation: hl-advance 1.6s linear infinite paused; }
+  .rings path { stroke: var(--c); stroke-opacity: .35; stroke-width: 1.2; }
+  .bore { fill: #050607; }
+  .surface { stroke: var(--c); stroke-opacity: .55; stroke-width: 1.4; }
+  .grass { fill: none; stroke: var(--c); stroke-opacity: .35; stroke-width: 1; }
+  .tbm-side { animation: hl-rumble .12s steps(2) infinite paused; }
+  .teeth { stroke-dasharray: 3 6; stroke-width: 2.6; animation: hl-teeth .5s linear infinite paused; }
+  .dust circle { fill: var(--c); opacity: 0; animation: hl-dust 1.6s ease-out infinite paused; animation-delay: var(--d); }
+  .num { font-family: var(--f-display); font-weight: 700; font-size: 58px; fill: #f4f5f6; filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c) 60%, transparent)); }
+  .ghost { stroke: #3a3e45; stroke-width: 6; stroke-linecap: round; }
+  .cta { fill: none; stroke: var(--c); stroke-opacity: .7; }
+  @keyframes hl-advance { to { transform: translateX(-96px); } }
+  @keyframes hl-rumble { 0% { transform: translate(0, 0); } 100% { transform: translate(0, .6px); } }
+  @keyframes hl-teeth { to { stroke-dashoffset: -9; } }
+  @keyframes hl-dust { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: .9; } 100% { opacity: 0; transform: translate(-60px, -14px); } }
+  @media (prefers-reduced-motion: reduce) { .draw { stroke-dashoffset: 0; transition: none; } }
+</style>

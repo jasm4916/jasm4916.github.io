@@ -1,0 +1,30 @@
+---
+// One stage's main visual. It renders inline under the stage (no-JS); the client script moves it onto the scope screen.
+import { Picture } from 'astro:assets';
+import Compare from './Compare.astro';
+import SimCompare from './SimCompare.astro';
+import { text, type Media } from '../lib/content';
+interface Props { media: Media; group: string; id: string; layoutSvg?: string | null; fallbackUrl?: string | null }
+const { media: m, group, id, layoutSvg, fallbackUrl } = Astro.props;
+// Figures sit inside the scope screen, usually height-limited, so they display far narrower than the column.
+const pic = { widths: [360, 560, 840, 1200], sizes: '(min-width: 1000px) 480px, 80vw', formats: ['avif', 'webp'] as const, quality: 82 };
+---
+{m.kind === 'placeholder' && <div class="ph-slot" set:html={text(m.label)} />}
+{m.kind === 'image' && (
+  <a class={`zoom${m.scope ? ' scopecap' : ''}`} href={m.full} data-lightbox={group} data-caption={m.caption ?? ''}>
+    <Picture src={m.img} alt={m.caption ?? ''} {...pic} loading="lazy" />
+  </a>
+)}
+{m.kind === 'svg' && (
+  <a class="zoom" href={m.url} data-lightbox={group} data-caption={m.caption ?? ''}>
+    <img src={m.url} alt={m.caption ?? ''} width="800" height="800" loading="lazy" decoding="async" />
+  </a>
+)}
+{m.kind === 'layout' && (
+  layoutSvg ? <div class="pcb-wrap"><Fragment set:html={layoutSvg} /></div>
+  : fallbackUrl ? <img src={fallbackUrl} alt={m.caption ?? 'Board layout'} width="800" height="800" loading="lazy" decoding="async" />
+  : <div class="ph-slot">[Layout]</div>
+)}
+{m.kind === 'compare' && (m.simA && m.simB
+  ? <SimCompare a={m.simA} b={m.simB} aLabel={m.aLabel} bLabel={m.bLabel} verdict={m.verdict} aFull={m.aFull} bFull={m.bFull} group={group} />
+  : <Compare a={m.a} b={m.b} aLabel={m.aLabel} bLabel={m.bLabel} id={`${id}-cmp`} />)}

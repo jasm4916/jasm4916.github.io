@@ -1,0 +1,142 @@
+---
+// A board's card under the instrument: an overview, then one short panel per design stage.
+// With JS only the current panel shows and each stage's figure moves onto the scope screen;
+// without JS everything reads top to bottom with figures inline.
+import fs from 'node:fs';
+import { Picture } from 'astro:assets';
+import StageMedia from './StageMedia.astro';
+import { text, inlineLayout, boardUrl, isPlaceholder, type Board } from '../lib/content';
+
+interface Props { board: Board; prev: Board; next: Board; total: number; active: boolean }
+const { board: b, next, total, active } = Astro.props;
+const id = `board-${b.ch}`;
+const group = `${b.slug}-docs`;
+const done = b.status !== 'in-progress';
+const fallbackUrl = b.photo_fallback ? boardUrl(b.slug, b.photo_fallback) : null;
+const layoutSvg = b.layout_svg && !b.layout_placeholder ? inlineLayout(b.slug, b.layout_svg, `${b.title}: top-layer layout line drawing`) : null;
+const stages = done ? b.stages : [];
+const k2 = (i: number) => String(i + 1).padStart(2, '0');
+
+const spec = [
+  ['LAYERS', String(b.layers)], ['TOOLS', b.tool], ['ASSEMBLY', b.assembly], ['SIZE', b.size],
+].filter(([, v]) => v && !isPlaceholder(v) && !/\[/.test(v)); // unknown values are left out, never shown as gaps
+
+const sizeOf = (p?: string | null) => {
+  if (!p || !p.startsWith('/')) return '';
+  try {
+    const bytes = fs.statSync(`public${p}`).size;
+    return bytes > 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(bytes / 1e3)} KB`;
+  } catch { return ''; }
+};
+const links = [
+  { label: 'Full report (PDF)', href: b.links.report, primary: true },
+  { label: 'Schematic', href: b.links.schematic, lightbox: true },
+  { label: 'Gerbers (ZIP)', href: b.links.gerbers, download: true },
+  { label: '3D view', href: b.links.model3d },
+].filter((l) => l.href && !isPlaceholder(l.href));
+
+const thumbsFor = (s: Board['stages'][number]) => [
+  ...(s.media2 && s.media2.kind === 'image' ? [{ img: s.media2.img, full: s.media2.full, caption: s.media2.caption ?? '' }] : []),
+  ...s.gallery,
+];
+---
+<article class={`board${active ? ' is-active' : ''}`} id={id} data-board={b.ch} data-short={b.short} data-readout={b.readout}
+  style={`--k:${b.color}`} aria-labelledby={`${id}-title`}>
+
+  <section class="panel ov on" data-view="ov">
+    <p class="board-kind">BOARD {b.ch} OF {total} · {b.kind}</p>
+    <h2 id={`${id}-title`}>{b.title}</h2>
+    <div class="ov-grid">
+      <div>
+        <p class="summary" set:html={text(b.summary)} />
+        {done ? (
+          <div class="ov-actions">
+            <button class="btn primary js-only" type="button" data-go="0">Walk through the build ▸</button>
+            {links.filter((l) => l.primary).map((l) => (
+              <a class="btn" href={boardUrl(b.slug, l.href!)} target="_blank" rel="noopener">{l.label} ↗</a>
+            ))}
+          </div>
+        ) : (
+          <div class="in-progress">
+            <p class="eyebrow">CASE STUDY IN PROGRESS</p>
+            <p>{b.progress_note ?? 'The full write-up goes up once the board report is finished.'}</p>
+            <p class="goal"><span class="k">GOAL</span> <span set:html={text(b.target)} /></p>
+          </div>
+        )}
+      </div>
+      <dl class="spec">
+        {spec.map(([k, v]) => <div><dt>{k}</dt><dd set:html={text(v)} /></div>)}
+      </dl>
+    </div>
+    {b.stats.length > 0 && (
+      <dl class="stats" aria-label="Key measurements">
+        {b.stats.map((s) => (
+          <div class="stat"><dt>{s.label}</dt><dd><span class="v">{s.value}</span>{s.note && <span class="n">{s.note}</span>}</dd></div>
+        ))}
+      </dl>
+    )}
+  </section>
+
+  {stages.map((s, i) => (
+    <section class="panel st" id={`${id}/${s.slug}`} data-view={i} data-label={s.label} data-slug={s.slug}
+      role="tabpanel" aria-labelledby={`sk-${b.ch}-${s.slug}`}>
+      <div class="st-main">
+        <p class="stage-k">{k2(i)} / {k2(stages.length - 1)} · {s.label}</p>
+        <h3>{s.title}</h3>
+        {s.lead ? <p class="lead" set:html={text(s.lead)} /> : <div class="prose" set:html={s.html} />}
+        {s.keys.length > 0 && <dl class="kv">{s.keys.map((k) => <div><dt>{k.label}</dt><dd>{k.value}</dd></div>)}</dl>}
+      </div>
+      {s.media && (
+        <figure class="step-media" data-cap={s.media.kind === 'placeholder' ? '' : (s.media.caption ?? '')} data-kind={s.media.kind}>
+          <StageMedia media={s.media} group={group} id={`${id}-${s.slug}`} layoutSvg={layoutSvg} fallbackUrl={fallbackUrl} />
+          {s.media.kind !== 'placeholder' && s.media.caption && <figcaption>{s.media.caption}</figcaption>}
+        </figure>
+      )}
+      {thumbsFor(s).length > 0 && (
+        <ul class="thumbs" aria-label="More figures">
+          {thumbsFor(s).map((g) => (
+            <li>
+              <a href={g.full} data-lightbox={`${id}-${s.slug}-more`} data-caption={g.caption}>
+                <span class="bezel"><Picture src={g.img} alt={g.caption} widths={[240, 480]} sizes="160px" formats={['avif', 'webp']} loading="lazy" /></span>
+                <span class="cap">{g.caption}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {s.lead && (
+        <details class="notes">
+          <summary>Full notes</summary>
+          <div class="prose" set:html={s.html} />
+        </details>
+      )}
+      {i === stages.length - 1 && (
+        <div class="result-block">
+          <div class="result-pair">
+            <div><div class="k">TARGET</div><div class="v" set:html={text(b.target)} /></div>
+            <div><div class="k">MEASURED</div><div class="v meas" set:html={text(b.measured)} /></div>
+          </div>
+          {links.length > 0 && (
+            <div class="links">
+              {links.map((l) => (
+                <a class={`btn${l.primary ? ' primary' : ''}`} href={boardUrl(b.slug, l.href!)}
+                  {...(l.lightbox ? { 'data-lightbox': group, 'data-caption': `${b.title}: schematic` } : {})}
+                  {...(l.download ? { download: '' } : { target: '_blank', rel: 'noopener' })}>
+                  {l.label} {l.download ? '↓' : '↗'} {sizeOf(l.href) && <span class="sz">{sizeOf(l.href)}</span>}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <nav class="st-nav js-only" aria-label="Stage navigation">
+        <button class="btn" type="button" data-go={i === 0 ? 'ov' : String(i - 1)}>◂ {i === 0 ? 'Overview' : stages[i - 1].label}</button>
+        {i < stages.length - 1 ? (
+          <button class="btn primary" type="button" data-go={String(i + 1)}>Next: {stages[i + 1].title} ▸</button>
+        ) : (
+          <a class="btn primary" href={`#board-${next.ch}`} data-goto={next.ch} style={`--k:${next.color}`}>Next board: CH{next.ch} · {next.title} ▸</a>
+        )}
+      </nav>
+    </section>
+  ))}
+</article>

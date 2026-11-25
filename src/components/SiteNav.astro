@@ -1,0 +1,21 @@
+---
+import { withBase } from '../lib/content';
+interface Props { name: string; tag: string; current: 'boards' | 'projects' | 'about' }
+const { name, tag, current } = Astro.props;
+const links = [
+  { key: 'boards', label: 'BOARDS', href: withBase('/') },
+  { key: 'projects', label: 'PROJECTS', href: withBase('/projects/') },
+  { key: 'about', label: 'ABOUT', href: withBase('/about/') },
+];
+---
+<header class="site-header">
+  <nav class="site-nav" aria-label="Primary">
+    <a class="brand" href={withBase('/')}>{name} <span>{tag}</span></a>
+    <div class="nav-links">
+      {links.map((l) => (
+        <a href={l.href} aria-current={current === l.key ? 'page' : undefined}>{l.label}</a>
+      ))}
+      <a class="cta" href="#contact"><span class="hide-sm">RÉSUMÉ /&nbsp;</span>CONTACT</a>
+    </div>
+  </nav>
+</header>

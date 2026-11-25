@@ -1,0 +1,101 @@
+---
+// The instrument: scope screen + CH keys. Softkeys under the screen step through a board's design stages,
+// and the screen shows each stage's real figure (moved in by the client script from the board cards below).
+import { wave, text, type Board } from '../lib/content';
+interface Props { boards: Board[]; home: { name: string; tagline: string; course_credit: string }; ch: number }
+const { boards, home } = Astro.props;
+const GOOD = '#6fe39a', BAD = '#f5d547';
+const k2 = (i: number) => String(i + 1).padStart(2, '0');
+---
+<section class="instrument" id="boards" aria-label="Board case studies">
+  <div class="instrument-row">
+    <div class="screen-col">
+      <div class="screen">
+        <svg class="grat" aria-hidden="true" viewBox="0 0 800 400" preserveAspectRatio="none">
+          <g stroke="#26332e" stroke-width="1"><path d="M80 0V400M160 0V400M240 0V400M320 0V400M480 0V400M560 0V400M640 0V400M720 0V400M0 50H800M0 100H800M0 150H800M0 250H800M0 300H800M0 350H800" /></g>
+          <g stroke="#3d5249" stroke-width="1.2"><path d="M400 0V400M0 200H800" /></g>
+        </svg>
+        <svg class="waves" aria-hidden="true" viewBox="0 0 800 400" preserveAspectRatio="none">
+          {boards.map((b) =>
+            b.wave === 'goodbad' ? (
+              <g data-for={b.ch}><g class="wave">
+                <path d={wave('bad')} stroke={BAD} stroke-width="2.2" style={`filter:drop-shadow(0 0 4px ${BAD})`} />
+                <path d={wave('good')} stroke={GOOD} stroke-width="2.5" style={`filter:drop-shadow(0 0 4px ${GOOD})`} />
+              </g></g>
+            ) : (
+              <g data-for={b.ch}><g class="wave">
+                <path d={wave(b.wave)} stroke={b.color} stroke-width="2.5" style={`filter:drop-shadow(0 0 4px ${b.color})`} />
+              </g></g>
+            )
+          )}
+        </svg>
+
+        <!-- home screen: name over the selected channel's waveform -->
+        <div class="screen-text">
+          <div class="screen-top">
+            {boards.map((b) => <span data-for={b.ch} style={`color:${b.color}`}>CH{b.ch} · BOARD {b.ch} · {b.short}</span>)}
+            <span><span class="run">● RUN</span>&nbsp; {boards.map((b) => <span data-for={b.ch} style="color:var(--ink-3)">{b.legend}</span>)}</span>
+          </div>
+          <div>
+            <h1>{home.name}</h1>
+            <p class="tagline">{home.tagline}</p>
+          </div>
+          <div class="readout">{boards.map((b) => <span data-for={b.ch} set:html={text(b.readout)} />)}</div>
+        </div>
+
+        <!-- stage mode: readouts around the stage figure -->
+        <div class="stage-ro stage-ro-top" aria-hidden="true"><span data-sro-top></span><span class="run">● RUN</span></div>
+        <div class="layers" data-layers></div>
+        <div class="stage-ro stage-ro-bot" aria-hidden="true"><span data-sro-bot></span></div>
+        <span class="sweep" aria-hidden="true"></span>
+      </div>
+
+      <p class="softkey-cue js-only" aria-hidden="true"><span class="arr">▾</span> PRESS A SOFTKEY TO STEP THROUGH THE BUILD · PLAN → RESULTS</p>
+      {boards.map((b) => (
+        <div class="softkey-bank" data-for={b.ch}>
+          {b.status === 'in-progress' || b.stages.length === 0 ? (
+            <p class="softkeys-wip">CH{b.ch} · CASE STUDY IN PROGRESS</p>
+          ) : (
+            <div class="softkeys" role="tablist" aria-label={`${b.title}: design stages`}>
+              {b.stages.map((s, i) => (
+                <button class="softkey" type="button" role="tab" id={`sk-${b.ch}-${s.slug}`} aria-controls={`board-${b.ch}/${s.slug}`}
+                  aria-selected="false" tabindex={i === 0 ? 0 : -1} data-ch={b.ch} data-stage={i}>
+                  <span class="n">{k2(i)}</span><span class="l">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+
+    <div class="controls">
+      <div class="eyebrow" id="select-board">SELECT BOARD</div>
+      <div class="keys" role="tablist" aria-labelledby="select-board">
+        {boards.map((b) => (
+          <button class="key" type="button" role="tab" id={`key-${b.ch}`} data-ch={b.ch} aria-controls={`board-${b.ch}`}
+            aria-selected={String(b.ch === Astro.props.ch)} tabindex={b.ch === Astro.props.ch ? 0 : -1} style={`--k:${b.color}`}>
+            <span class="key-top"><span class="key-ch">CH{b.ch}</span><span class="led" /></span>
+            <span class="key-title">{b.title}</span>
+          </button>
+        ))}
+      </div>
+      <nav class="keys keys-nojs" aria-label="Boards">
+        {boards.map((b) => (
+          <a class="key" href={`#board-${b.ch}`} style={`--k:${b.color}`}>
+            <span class="key-top"><span class="key-ch">CH{b.ch}</span><span class="led" /></span>
+            <span class="key-title">{b.title}</span>
+          </a>
+        ))}
+      </nav>
+      {boards.map((b) => (
+        <div data-for={b.ch}>
+          <a class="open-case" href={`#board-${b.ch}`} data-start={b.status === 'in-progress' ? undefined : b.ch}>
+            {b.status === 'in-progress' ? `ABOUT BOARD ${b.ch} ↓` : `WALK THROUGH BOARD ${b.ch} ▸`}
+          </a>
+        </div>
+      ))}
+      <p class="credit">{home.course_credit}</p>
+    </div>
+  </div>
+</section>

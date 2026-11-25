@@ -1,0 +1,124 @@
+---
+// Xcel Energy: a fault on a transmission line, the protective relay trips the breaker, a DNP3 event
+// goes over fiber to the control center, the breaker recloses. One 9 s loop, all CSS/SVG.
+// The mini scope's trace is revealed left to right by a moving curtain, so it stays in sync with the story.
+const X0 = 30, W = 284, CY = 352;
+let d = `M${X0} ${CY}`;
+for (let x = 0; x <= W; x += 2) {
+  const t = x / W;
+  const amp = t < 0.25 ? 13 : t < 0.46 ? 48 * Math.min(1, (t - 0.25) / 0.03) : t < 0.73 ? 0 : 13 * Math.min(1, (t - 0.73) / 0.05);
+  d += ` L${X0 + x} ${(CY - amp * Math.sin((x / 26) * Math.PI * 2)).toFixed(1)}`;
+}
+const tower = (x: number) =>
+  `M${x - 22} 236 L${x - 7} 84 L${x} 66 L${x + 7} 84 L${x + 22} 236 M${x - 36} 96 H${x + 36} M${x - 30} 128 H${x + 30} ` +
+  `M${x - 19} 210 L${x + 16} 176 L${x - 14} 150 L${x + 11} 122 L${x - 9} 100 M${x + 19} 210 L${x - 16} 176 L${x + 14} 150 L${x - 11} 122 L${x + 9} 100 ` +
+  `M${x - 36} 96 v10 M${x + 36} 96 v10 M${x - 30} 128 v10 M${x + 30} 128 v10`;
+---
+<svg class="scene relay" viewBox="0 0 640 440" role="img" aria-label="Animation: lightning faults a transmission line, the protective relay trips the breaker, a DNP3 event travels over fiber to the control center, and the breaker recloses.">
+  <rect class="flash" width="640" height="440" fill="#fff" opacity="0" />
+  <g class="neon">
+    <path class="draw" pathLength="1" d={tower(70)} />
+    <path class="draw" pathLength="1" d={tower(212)} />
+    <!-- conductors, tower to tower to gantry -->
+    <path class="draw wire" pathLength="1" d="M34 106 Q105 126 176 106 M106 106 Q177 126 248 106 M40 138 Q111 158 182 138 M176 106 Q258 122 340 112 M248 106 Q294 116 340 122 M182 138 Q261 152 340 132" />
+    <!-- gantry + one-line into the substation -->
+    <path class="draw" pathLength="1" d="M340 96 V236 M372 96 V236 M334 96 H378 M340 122 H356 V150 H372" />
+    <path class="flow" d="M372 150 H392" />
+    <rect class="bkr-closed" x="392" y="138" width="24" height="24" rx="2" />
+    <rect class="bkr-open" x="392" y="138" width="24" height="24" rx="2" />
+    <path class="flow live" d="M416 150 H470" />
+    <path class="draw" pathLength="1" d="M470 92 V210" stroke-width="3" />
+    <path class="flow live" d="M470 120 H560 M470 180 H560" />
+    <path class="draw" pathLength="1" d="M560 112 l10 8 l-10 8 M560 172 l10 8 l-10 8" />
+    <!-- CT and relay -->
+    <circle class="draw" pathLength="1" cx="382" cy="150" r="6" />
+    <path class="dash" d="M382 156 V228" />
+    <rect class="draw" pathLength="1" x="346" y="228" width="92" height="44" rx="4" />
+    <!-- fiber to the control center -->
+    <path class="fiber" d="M438 250 H492 V318 H508" />
+    <rect class="draw" pathLength="1" x="508" y="282" width="114" height="118" rx="6" />
+    <rect class="draw" pathLength="1" x="518" y="304" width="94" height="58" rx="2" />
+  </g>
+
+  <!-- mini scope: current through the CT -->
+  <g class="scope">
+    <rect x="22" y="282" width="300" height="140" rx="6" class="bezel" />
+    <path d="M30 318 H314 M30 352 H314 M30 386 H314 M100 290 V414 M172 290 V414 M244 290 V414" class="grat" />
+    <path d={d} class="trace" />
+    <rect class="curtain" x="30" y="290" width="286" height="124" />
+    <text x="32" y="302" class="t dim">CT CURRENT</text>
+  </g>
+
+  <!-- event labels -->
+  <path class="bolt" d="M150 0 L138 38 L156 44 L142 84 L160 90 L146 116" />
+  <circle class="spark" cx="146" cy="117" r="9" />
+  <text x="160" y="108" class="t lbl fault">FAULT</text>
+  <circle class="led" cx="422" cy="250" r="5" />
+  <text x="356" y="246" class="t">RELAY</text>
+  <text x="356" y="262" class="t dim">50/51</text>
+  <text x="448" y="226" class="t lbl trip">TRIP</text>
+  <text x="400" y="128" class="t lbl reclose">RECLOSE</text>
+  <circle class="pkt" r="4.5" />
+  <text x="452" y="310" class="t lbl pkt-lbl">DNP3</text>
+  <text x="518" y="298" class="t dim">CONTROL CENTER</text>
+  <text x="524" y="324" class="t ok st-ok">BKR  CLOSED</text>
+  <text x="524" y="324" class="t alarm st-trip">BKR  OPEN ▲</text>
+  <text x="524" y="342" class="t dim st-trip">EVENT LOGGED</text>
+  <text x="524" y="390" class="t dim">SCADA · DNP3</text>
+</svg>
+
+<style>
+  .relay { --c: #f5d547; --alarm: #ff6b5e; --ok: #6fe39a; width: 100%; height: auto; display: block; }
+  .neon { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 7px color-mix(in srgb, var(--c) 45%, transparent)); }
+  .wire { stroke-opacity: .85; }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.6s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .flow { stroke-dasharray: 5 9; animation: rl-flow 1s linear infinite paused; }
+  .dash { stroke-dasharray: 3 5; stroke-opacity: .6; }
+  .fiber { stroke: var(--c); stroke-opacity: .5; stroke-dasharray: 2 6; }
+  .bkr-closed { fill: var(--c); stroke: var(--c); animation: rl-bkrClosed 9s linear infinite paused; }
+  .bkr-open { fill: #050607; stroke: var(--ok); opacity: 0; animation: rl-bkrOpen 9s linear infinite paused; }
+  .live { animation: rl-flow 1s linear infinite paused, rl-live 9s linear infinite paused; }
+  .scope .bezel { fill: #0a0c0e; stroke: #2a2d32; }
+  .scope .grat { stroke: #1c2622; fill: none; }
+  .scope .trace { fill: none; stroke: var(--c); stroke-width: 1.8; filter: drop-shadow(0 0 3px var(--c)); }
+  .scope .curtain { fill: #0a0c0e; transform-box: fill-box; transform-origin: right center; animation: rl-curtain 9s linear infinite paused; }
+  .t { font-family: var(--f-mono); font-size: 11px; fill: var(--c); }
+  .t.dim { fill: #8d939b; }
+  .t.ok { fill: var(--ok); }
+  .t.alarm { fill: var(--alarm); }
+  .lbl { opacity: 0; font-weight: 600; }
+  .bolt { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linejoin: round; filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px var(--c)); opacity: 0; animation: rl-bolt 9s linear infinite paused; }
+  .spark { fill: #fff; opacity: 0; filter: drop-shadow(0 0 10px #fff); animation: rl-spark 9s linear infinite paused; }
+  .flash { animation: rl-flash 9s linear infinite paused; }
+  .fault { fill: #fff; animation: rl-fault 9s linear infinite paused; }
+  .led { fill: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); animation: rl-led 9s linear infinite paused; }
+  .trip { fill: var(--alarm); animation: rl-trip 9s linear infinite paused; }
+  .reclose { fill: var(--ok); animation: rl-reclose 9s linear infinite paused; }
+  .pkt { fill: var(--c); offset-path: path('M438 250 H492 V318 H508'); filter: drop-shadow(0 0 6px var(--c)); opacity: 0; animation: rl-pkt 9s linear infinite paused; }
+  .pkt-lbl { animation: rl-pktLbl 9s linear infinite paused; }
+  .st-ok { animation: rl-stOk 9s linear infinite paused; }
+  .st-trip { opacity: 0; animation: rl-stTrip 9s linear infinite paused; }
+
+  /* timeline (9 s): fault 22%, trip 40%, event at control center 50%, reclose 64%, sweep ends 88% */
+  @keyframes rl-flow { to { stroke-dashoffset: -14; } }
+  @keyframes rl-curtain { 0% { transform: scaleX(1); } 88% { transform: scaleX(0); } 96% { transform: scaleX(0); opacity: 1; } 100% { transform: scaleX(0); opacity: 0; } }
+  @keyframes rl-bolt { 0%, 21% { opacity: 0; } 22% { opacity: 1; } 23% { opacity: .2; } 24% { opacity: 1; } 27%, 100% { opacity: 0; } }
+  @keyframes rl-spark { 0%, 21.5% { opacity: 0; r: 4; } 23% { opacity: 1; r: 12; } 32%, 100% { opacity: 0; r: 18; } }
+  @keyframes rl-flash { 0%, 21.5% { opacity: 0; } 22.5% { opacity: .14; } 25%, 100% { opacity: 0; } }
+  @keyframes rl-fault { 0%, 22% { opacity: 0; } 23%, 38% { opacity: 1; } 42%, 100% { opacity: 0; } }
+  @keyframes rl-led { 0%, 39% { fill: var(--ok); } 40%, 63% { fill: var(--alarm); filter: drop-shadow(0 0 6px var(--alarm)); } 64%, 100% { fill: var(--ok); } }
+  @keyframes rl-trip { 0%, 39% { opacity: 0; } 40%, 52% { opacity: 1; } 56%, 100% { opacity: 0; } }
+  @keyframes rl-reclose { 0%, 63% { opacity: 0; } 64%, 76% { opacity: 1; } 80%, 100% { opacity: 0; } }
+  @keyframes rl-bkrClosed { 0%, 39.5% { opacity: 1; } 40%, 63.5% { opacity: 0; } 64%, 100% { opacity: 1; } }
+  @keyframes rl-bkrOpen { 0%, 39.5% { opacity: 0; } 40%, 63.5% { opacity: 1; } 64%, 100% { opacity: 0; } }
+  @keyframes rl-live { 0%, 39.5% { stroke-opacity: 1; } 40%, 63.5% { stroke-opacity: .12; } 64%, 100% { stroke-opacity: 1; } }
+  @keyframes rl-pkt { 0%, 40% { offset-distance: 0%; opacity: 0; } 41% { opacity: 1; } 49% { offset-distance: 100%; opacity: 1; } 50%, 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes rl-pktLbl { 0%, 40% { opacity: 0; } 42%, 49% { opacity: 1; } 51%, 100% { opacity: 0; } }
+  @keyframes rl-stOk { 0%, 49.5% { opacity: 1; } 50%, 67.5% { opacity: 0; } 68%, 100% { opacity: 1; } }
+  @keyframes rl-stTrip { 0%, 49.5% { opacity: 0; } 50%, 67.5% { opacity: 1; } 68%, 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .draw { stroke-dashoffset: 0; transition: none; }
+    .curtain { display: none; }
+  }
+</style>

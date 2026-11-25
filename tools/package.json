@@ -1,0 +1,7 @@
+{
+  "name": "portfolio-gerber-tools",
+  "private": true,
+  "type": "module",
+  "description": "Gerber -> SVG conversion used to draw real board layouts on the portfolio",
+  "dependencies": { "pcb-stackup": "^4.2.8", "gerber-to-svg": "^4.2.8", "whats-that-gerber": "^4.2.7" }
+}

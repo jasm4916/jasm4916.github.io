@@ -1,0 +1,76 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import SiteNav from '../../components/SiteNav.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+import AmpScene from '../../components/scenes/AmpScene.astro';
+import ModelScene from '../../components/scenes/ModelScene.astro';
+import VehicleScene from '../../components/scenes/VehicleScene.astro';
+import { md, text, withBase, getBoards } from '../../lib/content';
+import { setParamsExample, hex } from '../../lib/slp';
+
+// One real frame for the "How the link works" panel: the knob DRIVE.GAIN (param 0x0400) set to 62.
+const ex = setParamsExample(12, 0x0400, 62);
+
+const home = (await getEntry('pages', 'home'))!.data;
+const page = (await getEntry('pages', 'projects'))!;
+const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const boards = await getBoards();
+---
+<Base title="Projects · Jacob Smith" description="Jacob Smith's projects: the capstone neural-amp touchscreen and its link to the Daisy Seed3, and an autonomous human-following vehicle." path="/projects/">
+  <SiteNav name={home.name ?? ''} tag={home.nav_tag ?? ''} current="projects" />
+  <main id="main" class="wrap">
+    <header class="page-head">
+      <p class="eyebrow">{page.data.eyebrow}</p>
+      <h1>{page.data.title}</h1>
+      <div class="prose intro" set:html={md(page.body ?? '')} />
+    </header>
+
+    {projects.map((p, i) => (
+      <article class={`demo-block${i % 2 ? ' flip' : ''}`} id={p.id} style={`--k:${p.data.color}`} aria-labelledby={`${p.id}-h`}>
+        <div class="demo-visual">
+          {p.data.demo === 'amp' && (
+            <Fragment>
+              <div class="xp-screen"><AmpScene /></div>
+              <div class="xp-screen"><ModelScene /></div>
+              <p class="demo-cap">Tap an amp model on the touchscreen to switch it.</p>
+            </Fragment>
+          )}
+          {p.data.demo === 'vehicle' && <div class="xp-screen"><VehicleScene /></div>}
+          {!p.data.demo && <div class="card-media" set:html={text(p.data.media)} />}
+        </div>
+        <div class="demo-text">
+          <p class="xp-meta" set:html={text(p.data.eyebrow)} />
+          <h2 id={`${p.id}-h`} set:html={text(p.data.title)} />
+          {p.data.role && <p class="my-part"><span>MY PART</span>{p.data.role}</p>}
+          <div class="prose" set:html={md(p.body ?? '')} />
+          {p.data.facts.length > 0 && (
+            <dl class="kv">{p.data.facts.map((f) => <div><dt>{f.k}</dt><dd>{f.v}</dd></div>)}</dl>
+          )}
+          {p.data.demo === 'amp' && (
+            <details class="link-how">
+              <summary>How the link works</summary>
+              <p>The touchscreen and the Seed share one small C99 protocol that both sides compile unchanged. Every message is a frame with a version, type, sequence number, length, payload and CRC-16, COBS-encoded between zero bytes. If line noise or the ESP32's boot banner corrupts a frame, the receiver drops it and resyncs on the next zero. Here's the real frame for turning DRIVE's gain to 62:</p>
+              <dl class="frame">
+                <div><dt>header</dt><dd>{hex(ex.header)}</dd><span>ver 1 · SET_PARAMS · seq 12 · len 5</span></div>
+                <div><dt>payload</dt><dd>{hex(ex.payload)}</dd><span>1 param · id 0x0400 DRIVE.GAIN · value 62</span></div>
+                <div><dt>crc16</dt><dd>{hex(ex.crc)}</dd><span>CCITT-FALSE, little-endian</span></div>
+                <div class="wire"><dt>on the wire</dt><dd>{hex(ex.wire)}</dd><span>COBS-encoded, 0x00 at each end</span></div>
+              </dl>
+            </details>
+          )}
+        </div>
+      </article>
+    ))}
+
+    <a class="boards-teaser" href={withBase('/')}>
+      <span class="eyebrow">ALSO</span>
+      <span class="bt-title">Four PCBs, from plan of record to measured results</span>
+      <span class="bt-chs">{boards.map((b) => <span style={`--k:${b.color}`}>CH{b.ch}</span>)}</span>
+      <span class="bt-go">Open the instrument →</span>
+    </a>
+
+    <SiteFooter label={home.contact_label ?? ''} footer={home.footer ?? ''} />
+  </main>
+  <script src="../../scripts/reveal.ts"></script>
+</Base>

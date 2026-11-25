@@ -1,0 +1,72 @@
+---
+// Electronics Design Lab vehicle: what the ESP32-CAM sees. A person walks across the frame, the
+// detection box follows with a confidence bar, and the steering command sent back to the car
+// follows them (left / forward / right). One 10 s loop.
+---
+<svg class="scene veh" viewBox="0 0 640 440" role="img" aria-label="Animation: a camera view tracks a person with a detection box, and the steering command sent to the car changes between left, forward and right as they move.">
+  <g class="neon">
+    <path class="draw" pathLength="1" d="M40 60 V30 H80 M560 30 H600 V60 M600 330 V360 H560 M80 360 H40 V330" />
+    <path class="draw" pathLength="1" d="M40 300 L240 230 H400 L600 300" stroke-opacity=".35" />
+    <path class="draw" pathLength="1" d="M320 230 V360" stroke-opacity=".2" stroke-dasharray="4 8" />
+  </g>
+  <circle cx="60" cy="48" r="5" class="rec" />
+  <text x="72" y="52" class="t dim">ESP32-CAM · LIVE</text>
+  <text x="580" y="52" text-anchor="end" class="t dim">→ PYTHON · OpenCV</text>
+
+  <g class="walker">
+    <g class="neon person">
+      <circle cx="320" cy="146" r="15" />
+      <path d="M320 161 V232 M320 180 L298 210 M320 180 L342 208" />
+      <path class="leg-a" d="M320 232 L304 290" />
+      <path class="leg-b" d="M320 232 L336 290" />
+    </g>
+    <g class="box">
+      <rect x="276" y="118" width="88" height="182" rx="3" />
+      <path d="M276 132 V118 H290 M350 118 H364 V132 M364 286 V300 H350 M290 300 H276 V286" class="corners" />
+      <text x="278" y="110" class="t">PERSON</text>
+      <rect x="326" y="101" width="38" height="8" rx="2" class="conf-bg" />
+      <rect x="326" y="101" width="38" height="8" rx="2" class="conf" />
+    </g>
+  </g>
+
+  <g class="cmd">
+    <rect x="130" y="384" width="380" height="40" rx="8" class="bar" />
+    <text x="186" y="409" text-anchor="middle" class="c left">◀ LEFT</text>
+    <text x="320" y="409" text-anchor="middle" class="c fwd">▲ FORWARD</text>
+    <text x="454" y="409" text-anchor="middle" class="c right">RIGHT ▶</text>
+  </g>
+  <text x="20" y="432" class="t dim">WI-FI → ESP32 · STEERING</text>
+</svg>
+
+<style>
+  .veh { --c: #4fd1e8; --hot: #6fe39a; width: 100%; height: auto; display: block; }
+  .neon { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 7px color-mix(in srgb, var(--c) 45%, transparent)); }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.6s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .t { font-family: var(--f-mono); font-size: 11px; fill: var(--hot); }
+  .t.dim { fill: #8d939b; }
+  .rec { fill: #ff5d5d; animation: vh-rec 1.2s steps(1) infinite paused; }
+  .person { stroke: #e6e8eb; filter: drop-shadow(0 0 3px rgba(230, 232, 235, .5)); }
+  .leg-a, .leg-b { transform-origin: 320px 232px; }
+  .leg-a { animation: vh-legA .8s ease-in-out infinite alternate paused; }
+  .leg-b { animation: vh-legA .8s ease-in-out infinite alternate-reverse paused; }
+  .walker { animation: vh-walk 10s ease-in-out infinite paused; }
+  .box rect:first-child { fill: none; stroke: var(--hot); stroke-opacity: .45; stroke-dasharray: 4 5; }
+  .corners { fill: none; stroke: var(--hot); stroke-width: 2.4; filter: drop-shadow(0 0 4px var(--hot)); }
+  .conf-bg { fill: #1c2622; }
+  .conf { fill: var(--hot); transform-box: fill-box; transform-origin: left center; animation: vh-conf 2.5s ease-in-out infinite paused; }
+  .bar { fill: #0a0c0e; stroke: #2a2d32; }
+  .c { font-family: var(--f-mono); font-size: 13px; font-weight: 600; fill: #3a3e45; }
+  .left { animation: vh-cLeft 10s steps(1) infinite paused; }
+  .fwd { animation: vh-cFwd 10s steps(1) infinite paused; }
+  .right { animation: vh-cRight 10s steps(1) infinite paused; }
+  @keyframes vh-rec { 0% { opacity: 1; } 50% { opacity: .2; } }
+  @keyframes vh-legA { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
+  @keyframes vh-walk { 0%, 12% { transform: translateX(0); } 32%, 44% { transform: translateX(170px); } 62%, 70% { transform: translateX(0); } 86%, 96% { transform: translateX(-170px); } 100% { transform: translateX(0); } }
+  @keyframes vh-conf { 0%, 100% { transform: scaleX(.82); } 50% { transform: scaleX(.96); } }
+  /* FORWARD while centered, RIGHT while they're right of center, LEFT while left */
+  @keyframes vh-cFwd { 0% { fill: var(--hot); } 20% { fill: #3a3e45; } 56% { fill: var(--hot); } 76% { fill: #3a3e45; } 98% { fill: var(--hot); } }
+  @keyframes vh-cRight { 0% { fill: #3a3e45; } 20% { fill: var(--c); } 56% { fill: #3a3e45; } }
+  @keyframes vh-cLeft { 0% { fill: #3a3e45; } 76% { fill: var(--c); } 98% { fill: #3a3e45; } }
+  @media (prefers-reduced-motion: reduce) { .draw { stroke-dashoffset: 0; transition: none; } .fwd { fill: var(--hot); } }
+</style>

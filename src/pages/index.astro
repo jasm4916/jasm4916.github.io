@@ -1,0 +1,37 @@
+---
+import { getEntry } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import BoardPanel from '../components/BoardPanel.astro';
+import SiteNav from '../components/SiteNav.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import Lightbox from '../components/Lightbox.astro';
+import { getBoards } from '../lib/content';
+import { SITE } from '../site.config';
+
+const boards = await getBoards();
+const homeEntry = await getEntry('pages', 'home');
+if (!homeEntry) throw new Error('src/content/pages/home.md is missing');
+const home = homeEntry.data;
+const ch = boards.some((b) => b.ch === SITE.defaultBoard) ? SITE.defaultBoard : boards[0].ch;
+
+// Per-channel CSS, generated so adding board-5.md needs no CSS edits.
+const channelCss = boards
+  .map((b) => `html[data-ch="${b.ch}"]{--ch:${b.color}}html[data-ch="${b.ch}"] [data-for="${b.ch}"]{display:revert}html.js[data-ch="${b.ch}"] .board[data-board="${b.ch}"]{display:block}`)
+  .join('');
+---
+<Base ch={ch} channelCss={channelCss}>
+  <SiteNav name={home.name ?? ''} tag={home.nav_tag ?? ''} current="boards" />
+  <main id="main" class="wrap">
+    <Hero boards={boards} home={home as any} ch={ch} />
+    <div class="cards-area" id="case-studies">
+      {boards.map((b, i) => (
+        <BoardPanel board={b} prev={boards[(i + boards.length - 1) % boards.length]} next={boards[(i + 1) % boards.length]}
+          total={boards.length} active={b.ch === ch} />
+      ))}
+    </div>
+    <SiteFooter label={home.contact_label ?? ''} footer={home.footer ?? ''} />
+  </main>
+  <Lightbox />
+  <script src="../scripts/app.ts"></script>
+</Base>

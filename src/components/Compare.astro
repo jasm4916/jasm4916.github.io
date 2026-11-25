@@ -1,0 +1,28 @@
+---
+// Two scope captures as reference channels: REF A / REF B buttons switch the screen between them.
+// Without JS both captures show, one after the other, each with its label.
+import { Picture } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+interface Props { a: ImageMetadata; b: ImageMetadata; aLabel: string; bLabel: string; id: string }
+const { a, b, aLabel, bLabel, id } = Astro.props;
+const pic = { widths: [400, 800], sizes: '(min-width: 1000px) 820px, 94vw', formats: ['avif', 'webp'] as const, quality: 90 };
+const split = (s: string) => { const i = s.indexOf(':'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1).trim()]; };
+const [aName, aVal] = split(aLabel);
+const [bName, bVal] = split(bLabel);
+---
+<div class="refcmp" data-refcmp id={id}>
+  <div class="ref-imgs">
+    <figure class="ref-img on" data-ref="a">
+      <Picture src={a} alt={`Scope capture — ${aLabel}`} {...pic} loading="lazy" />
+      <figcaption class="ref-cap">REF A · {aLabel}</figcaption>
+    </figure>
+    <figure class="ref-img" data-ref="b">
+      <Picture src={b} alt={`Scope capture — ${bLabel}`} {...pic} loading="lazy" />
+      <figcaption class="ref-cap">REF B · {bLabel}</figcaption>
+    </figure>
+  </div>
+  <div class="ref-btns" role="group" aria-label="Reference channel">
+    <button type="button" class="ref-btn on" data-ref="a" aria-pressed="true"><span class="sw"></span><span class="r">REF A</span> <b>{aName}</b>{aVal && <span class="val">{aVal}</span>}</button>
+    <button type="button" class="ref-btn" data-ref="b" aria-pressed="false"><span class="sw"></span><span class="r">REF B</span> <b>{bName}</b>{bVal && <span class="val">{bVal}</span>}</button>
+  </div>
+</div>

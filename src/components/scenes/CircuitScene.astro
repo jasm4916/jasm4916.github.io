@@ -1,0 +1,81 @@
+---
+// CU Boulder (Electrical Engineering): a series RLC circuit drawn as a schematic, and its simulated
+// step response, the classic underdamped ring, sweeping across an LTSpice-style plot. 7 s loop.
+const X0 = 96, X1 = 584, YB = 404, SC = 92; // plot x range, baseline y, volts→px
+const zeta = 0.16, wn = 1, T = 42;
+const wd = wn * Math.sqrt(1 - zeta * zeta);
+let resp = `M${X0} ${YB}`;
+for (let i = 0; i <= 240; i++) {
+  const t = (i / 240) * T;
+  const v = 1 - Math.exp(-zeta * wn * t) * (Math.cos(wd * t) + (zeta / Math.sqrt(1 - zeta * zeta)) * Math.sin(wd * t));
+  resp += ` L${(X0 + (i / 240) * (X1 - X0)).toFixed(1)} ${(YB - v * SC).toFixed(1)}`;
+}
+const tPeak = Math.PI / wd;
+const vPeak = 1 + Math.exp((-zeta * Math.PI) / Math.sqrt(1 - zeta * zeta));
+const px = X0 + (tPeak / T) * (X1 - X0), py = YB - vPeak * SC;
+const step = `M66 ${YB} H${X0} V${YB - SC} H${X1}`;
+// schematic pieces
+const R = 'M150 92 l8 -10 l12 20 l12 -20 l12 20 l12 -20 l12 20 l8 -10';
+const L = 'M252 92 a12 12 0 0 1 24 0 a12 12 0 0 1 24 0 a12 12 0 0 1 24 0 a12 12 0 0 1 24 0';
+---
+<svg class="scene ckt" viewBox="0 0 640 440" role="img" aria-label="Animation: a series RLC circuit schematic and its simulated step response, which overshoots and rings before settling, sweeping across a plot.">
+  <defs><clipPath id="ckt-plot"><rect x="44" y="232" width="560" height="196" /></clipPath></defs>
+  <!-- schematic -->
+  <g class="neon">
+    <circle class="draw" pathLength="1" cx="80" cy="140" r="22" />
+    <path class="draw" pathLength="1" d="M70 148 H78 V130 H90" />
+    <path class="draw" pathLength="1" d="M80 118 V92 H150 M226 92 H252 M348 92 H420 V124 M420 156 V196 H80 V162" />
+    <path class="draw" pathLength="1" d={R} />
+    <path class="draw" pathLength="1" d={L} />
+    <path class="draw" pathLength="1" d="M398 124 H442 M398 136 H442" />
+    <path class="draw" pathLength="1" d="M406 196 H434 M412 204 H428 M418 212 H422" />
+    <path class="draw" pathLength="1" d="M420 92 H470 M470 82 l14 10 l-14 10 Z" />
+  </g>
+  <path class="current" d={`M80 118 V92 H150 ${R.slice(8)} H252 ${L.slice(7)} H420 V124`} />
+  <g class="lbl">
+    <text x="178" y="72" class="t">R1</text>
+    <text x="290" y="72" class="t">L1</text>
+    <text x="452" y="134" class="t">C1</text>
+    <text x="490" y="96" class="t">VOUT</text>
+    <text x="28" y="144" class="t dim">STEP</text>
+    <text x="490" y="140" class="t dim">ζ = (R/2)·√(C/L)</text>
+    <text x="490" y="158" class="t dim">ζ &lt; 1 → it rings</text>
+  </g>
+
+  <!-- plot -->
+  <rect x="44" y="232" width="560" height="196" rx="6" class="pane" />
+  <path class="grid" d={Array.from({ length: 11 }, (_, i) => `M${X0 + i * 48.8} 240 V420`).join(' ') + ' ' + [0, 0.5, 1, 1.5].map((v) => `M60 ${YB - v * SC} H596`).join(' ')} />
+  <text x="54" y="250" class="t">.tran</text>
+  <text x="596" y="250" text-anchor="end" class="t dim">V(out) · V(in)</text>
+  <g clip-path="url(#ckt-plot)">
+    <path d={step} class="vin" />
+    <path d={resp} class="vout" />
+    <rect class="curtain" x={X0 - 1} y="236" width={X1 - X0 + 14} height="188" />
+  </g>
+  <g class="peak">
+    <circle cx={px} cy={py} r="4" />
+    <text x={px + 10} y={py - 4} class="t">overshoot</text>
+  </g>
+</svg>
+
+<style>
+  .ckt { --c: #6fe39a; width: 100%; height: auto; display: block; }
+  .neon { fill: none; stroke: var(--c); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 7px color-mix(in srgb, var(--c) 45%, transparent)); }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.6s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .current { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 2 26; opacity: .8; filter: drop-shadow(0 0 4px var(--c)); animation: ck-flow 1.4s linear infinite paused; }
+  .t { font-family: var(--f-mono); font-size: 11.5px; fill: var(--c); }
+  .t.dim { fill: #8d939b; }
+  .pane { fill: #0a0c0e; stroke: #2a2d32; }
+  .grid { stroke: #1c2622; fill: none; }
+  .vin { fill: none; stroke: #8d939b; stroke-width: 1.4; stroke-dasharray: 5 5; }
+  .vout { fill: none; stroke: var(--c); stroke-width: 2; filter: drop-shadow(0 0 3px var(--c)); }
+  .curtain { fill: #0a0c0e; transform-box: fill-box; transform-origin: right center; animation: ck-curtain 7s linear infinite paused; }
+  .peak { opacity: 0; animation: ck-peak 7s linear infinite paused; }
+  .peak circle { fill: none; stroke: #fff; stroke-width: 1.4; }
+  .peak .t { fill: #fff; }
+  @keyframes ck-flow { to { stroke-dashoffset: -28; } }
+  @keyframes ck-curtain { 0% { transform: scaleX(1); } 72% { transform: scaleX(0); } 94% { transform: scaleX(0); opacity: 1; } 100% { transform: scaleX(0); opacity: 0; } }
+  @keyframes ck-peak { 0%, 14% { opacity: 0; } 17%, 90% { opacity: 1; } 96%, 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .draw { stroke-dashoffset: 0; transition: none; } .curtain { display: none; } .peak { opacity: 1; } }
+</style>

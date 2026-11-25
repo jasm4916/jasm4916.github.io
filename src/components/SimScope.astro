@@ -1,0 +1,145 @@
+---
+// One scope capture drawn natively: graticule, scales, Meas panel, reference lines, the traces,
+// and callouts that point at what matters. With .play on an ancestor, the trace sweeps in and the
+// callouts appear one after another.
+import { capture, G } from '../lib/captures';
+interface Props { id: string; label: string }
+const { id, label } = Astro.props;
+const c = capture(id);
+const uid = `sim-${id}`;
+const grid = [
+  ...Array.from({ length: 11 }, (_, i) => `M${G.X0 + i * ((G.X1 - G.X0) / 10)} ${G.Y0}V${G.Y1}`),
+  ...Array.from({ length: 9 }, (_, i) => `M${G.X0} ${G.Y0 + i * ((G.Y1 - G.Y0) / 8)}H${G.X1}`),
+].join('');
+const cx = (G.X0 + G.X1) / 2, cy = (G.Y0 + G.Y1) / 2;
+const ticks = [
+  ...Array.from({ length: 51 }, (_, i) => `M${G.X0 + i * ((G.X1 - G.X0) / 50)} ${cy - 3}V${cy + 3}`),
+  ...Array.from({ length: 41 }, (_, i) => `M${cx - 3} ${G.Y0 + i * ((G.Y1 - G.Y0) / 40)}H${cx + 3}`),
+].join('');
+const delay = (i: number) => `--d:${(1.9 + i * 0.85).toFixed(2)}s`;
+// numbered list of every annotation (spans first, then callouts): shown under the scope on phones
+const notes = [
+  ...c.spans.map((s) => ({ title: s.label, note: '', color: s.color })),
+  ...c.callouts.map((k) => ({ title: k.title, note: k.note ?? '', color: k.color })),
+];
+---
+<div class="simwrap">
+<svg class="sim" viewBox={`0 0 ${G.W} ${G.H}`} role="img" aria-label={label}>
+  <defs><clipPath id={`${uid}-clip`}><rect x={G.X0} y={G.Y0} width={G.X1 - G.X0} height={G.Y1 - G.Y0} /></clipPath></defs>
+
+  <!-- header: channel scales, timebase, trigger -->
+  {c.header.map((h, i) => (
+    <g class="hdr"><rect x={G.X0 + i * 92} y="10" width="16" height="16" rx="2" fill={h.color} /><text x={G.X0 + i * 92 + 8} y="22" text-anchor="middle" class="hn">{h.n}</text><text x={G.X0 + i * 92 + 22} y="22" fill={h.color}>{h.scale}</text></g>
+  ))}
+  <text x={(G.X0 + G.X1) / 2 + 70} y="22" class="hdr-t">{c.timebase}</text>
+  <text x={G.X1} y="22" text-anchor="end" class="hdr-t dim">{c.trig}</text>
+
+  <!-- plot -->
+  <rect x={G.X0} y={G.Y0} width={G.X1 - G.X0} height={G.Y1 - G.Y0} class="plot" />
+  <path d={grid} class="grid" />
+  <path d={ticks} class="ticks" />
+  {c.vLabels.map((l) => <text x={G.X0 + 5} y={l.y - 3} class="ax in">{l.text}</text>)}
+  {c.tLabels.map((l) => <text x={l.x} y={G.Y1 + 18} text-anchor="middle" class="ax">{l.text}</text>)}
+  {c.traces.map((t) => (
+    <g class="gnd"><path d={`M${G.X0 - 2} ${t.zeroY - 7} h-12 v14 h12 l7 -7 Z`} fill={t.color} /><text x={G.X0 - 9} y={t.zeroY + 4} text-anchor="middle" class="hn">{t.n}</text></g>
+  ))}
+
+  <g clip-path={`url(#${uid}-clip)`}>
+    {c.refs.map((r) => <path d={`M${G.X0} ${r.y}H${G.X1}`} class="ref" stroke={r.color} />)}
+    {c.traces.map((t) => <path d={t.d} class="tr" stroke={t.color} style={`--glow:${t.color}`} />)}
+    <rect class="curtain" x={G.X0 - 2} y={G.Y0} width={G.X1 - G.X0 + 4} height={G.Y1 - G.Y0} />
+  </g>
+  {c.refs.map((r) => <text x={G.X1 - 6} y={r.y - 6} text-anchor="end" class="ref-t" fill={r.color}>{r.label}</text>)}
+
+  <!-- spans: brackets that measure something along the time axis -->
+  {c.spans.map((s, i) => (
+    <g class="ann" style={delay(i)}>
+      <path d={`M${s.x1} ${s.y - 6}V${s.y + 6}M${s.x2} ${s.y - 6}V${s.y + 6}M${s.x1} ${s.y}H${s.x2}`} class="span" stroke={s.color} />
+      <text x={(s.x1 + s.x2) / 2} y={s.y - 9} text-anchor="middle" class="ann-t" fill={s.color}>{s.label}</text>
+      <g class="num"><circle cx={(s.x1 + s.x2) / 2} cy={s.y - 16} r="13" fill={s.color} /><text x={(s.x1 + s.x2) / 2} y={s.y - 11} text-anchor="middle">{i + 1}</text></g>
+    </g>
+  ))}
+
+  <!-- callouts -->
+  {c.callouts.map((k, i) => (
+    <g class="ann" style={delay(i + c.spans.length)}>
+      <circle cx={k.x} cy={k.y} r="7" class="ring" stroke={k.color} />
+      <path d={`M${k.x} ${k.y} L${k.lx + 6} ${k.ly + 8}`} class="lead" stroke={k.color} />
+      <rect x={k.lx} y={k.ly - 8} width={k.w} height={k.note ? 38 : 22} rx="4" class="box" stroke={k.color} />
+      <text x={k.lx + 9} y={k.ly + 7} class="ann-t" fill={k.color}>{k.title}</text>
+      {k.note && <text x={k.lx + 9} y={k.ly + 23} class="ann-n">{k.note}</text>}
+      <g class="num"><circle cx={k.x + 16} cy={k.y - 16} r="13" fill={k.color} /><text x={k.x + 16} y={k.y - 11} text-anchor="middle">{i + 1 + c.spans.length}</text></g>
+    </g>
+  ))}
+
+  <!-- Meas panel -->
+  <rect x={G.PX} y={G.Y0} width={G.PW} height={G.Y1 - G.Y0} rx="4" class="panel" />
+  <text x={G.PX + G.PW / 2} y={G.Y0 + 20} text-anchor="middle" class="ax">Meas</text>
+  {c.readouts.map((r, i) => (
+    <g class="meas" style={`--d:${(1.4 + i * 0.25).toFixed(2)}s`}>
+      <text x={G.PX + 12} y={G.Y0 + 50 + i * 46} class="m-l">{r.label}:</text>
+      <text x={G.PX + G.PW - 12} y={G.Y0 + 70 + i * 46} text-anchor="end" class="m-v" fill={r.color}>{r.value}</text>
+    </g>
+  ))}
+</svg>
+<ol class="sim-notes" aria-hidden="true">
+  {notes.map((n, i) => (
+    <li style={`--d:${(1.9 + i * 0.85).toFixed(2)}s;--c:${n.color}`}><span class="nn">{i + 1}</span><b>{n.title}</b>{n.note && <span class="nt"> · {n.note}</span>}</li>
+  ))}
+</ol>
+</div>
+
+<style>
+  .sim { width: 100%; height: 100%; display: block; font-family: var(--f-mono); }
+  .plot { fill: #05070a; }
+  .grid { stroke: #1d2a25; stroke-width: 1; stroke-dasharray: 1 3; fill: none; }
+  .ticks { stroke: #2c3b35; stroke-width: 1; fill: none; }
+  .hdr text, .hdr-t { font-size: 13px; }
+  .hn { font-size: 11px; font-weight: 700; fill: #050607; }
+  .hdr-t { fill: #e6e8eb; }
+  .dim { fill: #8d939b; }
+  .ax { font-size: 11px; fill: #8d939b; }
+  .ax.in { font-size: 11px; fill: #9aa0a8; }
+  .tr { fill: none; stroke-width: 1.8; stroke-linejoin: round; filter: drop-shadow(0 0 2.5px var(--glow)); }
+  .ref { fill: none; stroke-width: 1.2; stroke-dasharray: 5 5; opacity: .75; }
+  .ref-t { font-size: 11px; }
+  .curtain { fill: #05070a; transform-box: fill-box; transform-origin: right center; transform: scaleX(0); }
+  .panel { fill: #0b0d10; stroke: #23262b; }
+  .m-l { font-size: 12px; fill: #a3a8b0; }
+  .m-v { font-size: 15px; font-weight: 600; }
+  .span { fill: none; stroke-width: 1.4; }
+  .ring { fill: none; stroke-width: 1.8; }
+  .lead { fill: none; stroke-width: 1.2; stroke-dasharray: 3 3; }
+  .box { fill: rgba(8, 10, 13, .92); stroke-width: 1.2; }
+  .ann-t { font-size: 12.5px; font-weight: 600; }
+  .ann-n { font-size: 11.5px; fill: #c3c7cd; }
+  .simwrap { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+  .simwrap .sim { flex: 1 1 auto; min-height: 0; }
+  .num { display: none; }
+  .num text { font-size: 15px; font-weight: 700; fill: #050607; }
+  .sim-notes { display: none; }
+  /* phones: numbered markers on the trace, readable notes underneath */
+  @media (max-width: 640px) {
+    .ann .box, .ann .ann-t, .ann .ann-n, .ann .lead { display: none; }
+    .num { display: inline; }
+    .sim-notes { display: grid; gap: 3px; width: 100%; margin: 4px 0 0; padding: 0 2px; list-style: none; font-family: var(--f-mono); font-size: 10.5px; line-height: 1.35; color: #c3c7cd; }
+    .sim-notes li { display: block; padding-left: 21px; text-indent: -21px; }
+    .sim-notes .nn { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; text-indent: 0; border-radius: 50%; background: var(--c); color: #050607; font-weight: 700; font-size: 10px; vertical-align: 1px; }
+    .sim-notes b { color: var(--c); font-weight: 600; }
+    .sim-notes .nt { color: #a3a8b0; }
+    :global(.play) .sim-notes li { animation: sim-fade .4s ease-out both; animation-delay: var(--d); }
+  }
+
+  /* playback: the trace sweeps in, then readouts and callouts appear in order */
+  :global(.play) .curtain { animation: sim-sweep 1.5s cubic-bezier(.4, 0, .2, 1) both; }
+  :global(.play) .meas { animation: sim-fade .4s ease-out both; animation-delay: var(--d); }
+  :global(.play) .ann { animation: sim-pop .55s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--d); }
+  :global(.play) .ann .ring { animation: sim-ring 1.8s ease-out 2; animation-delay: var(--d); transform-box: fill-box; transform-origin: center; }
+  @keyframes sim-sweep { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  @keyframes sim-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sim-pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes sim-ring { 0% { transform: scale(1); } 40% { transform: scale(1.7); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    :global(.play) .curtain, :global(.play) .meas, :global(.play) .ann, :global(.play) .ann .ring { animation: none; }
+  }
+</style>

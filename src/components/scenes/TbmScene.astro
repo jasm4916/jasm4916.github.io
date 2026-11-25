@@ -1,0 +1,99 @@
+---
+// The Boring Company: a TBM cutter head, face on, turning inside the segmented tunnel lining,
+// with the OCC's status strip underneath (HPU, main drive, OCC). Geometry is generated here.
+const CX = 320, CY = 205, R = 150;
+const rad = (a: number) => (a * Math.PI) / 180;
+const pt = (r: number, a: number) => [CX + r * Math.cos(rad(a)), CY + r * Math.sin(rad(a))].map((v) => v.toFixed(1)).join(' ');
+
+// six spokes, each a pair of rails from the hub to the rim
+const spokes = Array.from({ length: 6 }, (_, i) => i * 60)
+  .map((a) => `M${pt(34, a - 5)} L${pt(R - 10, a - 2.4)} M${pt(34, a + 5)} L${pt(R - 10, a + 2.4)}`)
+  .join(' ');
+// disc cutters along each spoke, drawn as short bars across it
+const cutters = Array.from({ length: 6 }, (_, i) => i * 60).flatMap((a) =>
+  [56, 82, 108, 132].map((r, j) => {
+    const off = j % 2 ? 7 : -7; // stagger the cutters along the face
+    return `M${pt(r, a + off - 3.2)} L${pt(r, a + off + 3.2)}`;
+  }),
+).join(' ');
+// muck openings between the spokes, near the rim
+const buckets = Array.from({ length: 6 }, (_, i) => i * 60 + 30)
+  .map((a) => `M${pt(R - 14, a - 14)} A${R - 14} ${R - 14} 0 0 1 ${pt(R - 14, a + 14)} L${pt(R - 40, a + 10)} A${R - 40} ${R - 40} 0 0 0 ${pt(R - 40, a - 10)} Z`)
+  .join(' ');
+// gauge cutters around the rim
+const gauge = Array.from({ length: 24 }, (_, i) => i * 15).map((a) => `M${pt(R, a)} L${pt(R + 7, a)}`).join(' ');
+// tunnel lining: 8 segments with joints
+const lining = Array.from({ length: 8 }, (_, i) => i * 45)
+  .map((a) => `M${pt(182, a + 2)} A182 182 0 0 1 ${pt(182, a + 43)} M${pt(198, a + 2)} A198 198 0 0 1 ${pt(198, a + 43)} M${pt(182, a + 2)} L${pt(198, a + 2)}`)
+  .join(' ');
+const bolts = Array.from({ length: 16 }, (_, i) => i * 22.5 + 11).map((a) => pt(190, a).split(' '));
+// muck particles thrown off the face
+const dust = Array.from({ length: 14 }, (_, i) => ({ a: i * 25.7, d: (i * 0.37) % 2.4, r: 1 + (i % 3) * 0.6 }));
+---
+<svg class="scene tbm" viewBox="0 0 640 460" role="img" aria-label="Animation: a tunnel boring machine's cutter head turning inside the segmented tunnel lining, above the operational control center's status lights.">
+  <g class="neon lining-g">
+    <path class="draw" pathLength="1" d={lining} />
+    {bolts.map(([x, y]) => <circle cx={x} cy={y} r="2" class="bolt" />)}
+  </g>
+  <g class="dust">
+    {dust.map((p) => (
+      <circle cx={CX} cy={CY} r={p.r} style={`--a:${p.a}deg;--d:${p.d}s`} />
+    ))}
+  </g>
+  <g class="head">
+    <g class="neon">
+      <circle class="draw" pathLength="1" cx={CX} cy={CY} r={R} />
+      <circle class="draw" pathLength="1" cx={CX} cy={CY} r={R - 10} stroke-opacity=".5" />
+      <path class="draw" pathLength="1" d={gauge} />
+      <path class="draw" pathLength="1" d={spokes} />
+      <path class="draw" pathLength="1" d={buckets} stroke-opacity=".7" />
+      <path class="draw cut" pathLength="1" d={cutters} />
+      <circle class="draw" pathLength="1" cx={CX} cy={CY} r="34" />
+      <circle class="draw" pathLength="1" cx={CX} cy={CY} r="20" stroke-opacity=".6" />
+      <path class="draw" pathLength="1" d={`M${CX - 8} ${CY} H${CX + 8} M${CX} ${CY - 8} V${CY + 8}`} />
+    </g>
+  </g>
+
+  <!-- OCC status strip -->
+  <g class="occ">
+    <rect x="96" y="414" width="448" height="34" rx="6" />
+    <circle cx="124" cy="431" r="4.5" class="l1" /><text x="136" y="435">HPU</text>
+    <circle cx="214" cy="431" r="4.5" class="l2" /><text x="226" y="435">MAIN DRIVE</text>
+    <circle cx="352" cy="431" r="4.5" class="l3" /><text x="364" y="435">CUTTERHEAD</text>
+    <text x="474" y="435" class="state">OCC · RUN</text>
+  </g>
+  <text x="20" y="26" class="cap">PRUFROCK · CUTTER HEAD</text>
+</svg>
+
+<style>
+  .tbm { --c: #4fd1e8; width: 100%; height: auto; display: block; }
+  .neon { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 7px color-mix(in srgb, var(--c) 45%, transparent)); }
+  .lining-g { opacity: .55; }
+  .bolt { fill: var(--c); stroke: none; }
+  .cut { stroke-width: 3.2; }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.8s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .head { transform-origin: 320px 205px; animation: tb-spin 26s linear infinite paused; }
+  .lining-g { animation: tb-breathe 4s ease-in-out infinite paused; }
+  .dust circle { fill: var(--c); opacity: 0; transform-origin: 320px 205px; animation: tb-dust 2.4s linear infinite paused; animation-delay: var(--d); }
+  .occ rect { fill: #0a0c0e; stroke: #2a2d32; }
+  .occ text, .cap { font-family: var(--f-mono); font-size: 11px; fill: #a3a8b0; }
+  .cap { fill: var(--c); }
+  .occ .state { fill: #6fe39a; }
+  .occ circle { fill: #2c2f34; }
+  .occ .l1 { animation: tb-lamp 3s steps(1) infinite paused; }
+  .occ .l2 { animation: tb-lamp 3s steps(1) infinite paused; animation-delay: .4s; }
+  .occ .l3 { animation: tb-lamp 3s steps(1) infinite paused; animation-delay: .8s; }
+  @keyframes tb-spin { to { transform: rotate(360deg); } }
+  @keyframes tb-breathe { 0%, 100% { opacity: .45; } 50% { opacity: .7; } }
+  @keyframes tb-dust {
+    0% { opacity: 0; transform: rotate(var(--a)) translateX(150px); }
+    15% { opacity: .9; }
+    100% { opacity: 0; transform: rotate(calc(var(--a) + 40deg)) translateX(178px); }
+  }
+  @keyframes tb-lamp { 0% { fill: #2c2f34; } 12% { fill: #6fe39a; filter: drop-shadow(0 0 4px #6fe39a); } 100% { fill: #6fe39a; filter: drop-shadow(0 0 4px #6fe39a); } }
+  @media (prefers-reduced-motion: reduce) {
+    .draw { stroke-dashoffset: 0; transition: none; }
+    .occ circle { fill: #6fe39a; }
+  }
+</style>

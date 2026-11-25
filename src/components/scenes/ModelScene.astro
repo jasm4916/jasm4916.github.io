@@ -1,0 +1,130 @@
+---
+// Capstone, part two: switching amp models. Tapping a model on the touchscreen sends SELECT_MODEL to the
+// Seed, and the output waveform changes character. Three of the amps from the firmware's model list,
+// described in its own words. The waveform shapes are illustrative, not captures.
+const MODELS = [
+  { name: "Fender '65 Twin Reverb", short: 'FENDER TWIN', desc: 'clean headroom' },
+  { name: 'Vox AC30', short: 'VOX AC30', desc: 'chimey top-boost breakup' },
+  { name: 'Marshall JCM800', short: 'MARSHALL JCM800', desc: 'classic rock crunch' },
+];
+const shape = [
+  (t: number) => 0.62 * Math.sin(t),
+  (t: number) => 0.8 * Math.tanh(1.8 * Math.sin(t) + 0.4 * Math.sin(2 * t)) / Math.tanh(1.9),
+  (t: number) => 0.86 * Math.tanh(5 * Math.sin(t) + 0.5 * Math.sin(3 * t)) / Math.tanh(5),
+];
+const X0 = 352, W = 420, PER = 60, CY = 150, A = 78;
+const wave = (f: (t: number) => number) => {
+  let d = `M${X0} ${CY}`;
+  for (let x = 0; x <= W; x += 1.5) d += ` L${(X0 + x).toFixed(1)} ${(CY - A * f((x / PER) * Math.PI * 2)).toFixed(1)}`;
+  return d;
+};
+const rows = [70, 136, 202];
+---
+<svg class="scene models" viewBox="0 0 640 300" role="group" aria-label="Amp model switcher: choose Fender '65 Twin Reverb, Vox AC30 or Marshall JCM800 on the touchscreen and the output waveform changes."
+  data-models={JSON.stringify(MODELS)}>
+  <defs><clipPath id="md-scope"><rect x="352" y="40" width="266" height="220" /></clipPath></defs>
+  <g class="mine">
+    <rect class="draw" pathLength="1" x="20" y="24" width="250" height="252" rx="10" />
+  </g>
+  <text x="36" y="52" class="t mine-t">AMP MODEL</text>
+  <text x="256" y="52" text-anchor="end" class="t dim">NAM · A2</text>
+  {MODELS.map((m, i) => (
+    <g class={`mrow${i === 0 ? ' on' : ''}`} data-m={i} role="button" tabindex="0" aria-pressed={String(i === 0)}>
+      <rect x="34" y={rows[i]} width="222" height="56" rx="6" class="row-bg" />
+      <text x="50" y={rows[i] + 24} class="row-name">{m.name}</text>
+      <text x="50" y={rows[i] + 42} class="row-desc">{m.desc}</text>
+      <circle cx="236" cy={rows[i] + 28} r="6" class="rip" />
+      <circle cx="236" cy={rows[i] + 28} r="4" class="sel" />
+    </g>
+  ))}
+
+  <path class="link" d="M270 150 H350" />
+  <circle class="mpkt" cx="270" cy="150" r="4" />
+  <text x="310" y="140" text-anchor="middle" class="t mine-t tiny">SELECT_MODEL</text>
+
+  <rect x="350" y="24" width="270" height="252" rx="8" class="scope" />
+  <path class="grat" d={Array.from({ length: 9 }, (_, i) => `M${352 + i * 33.25} 40 V260`).join(' ') + ' ' + [62, 106, 150, 194, 238].map((y) => `M352 ${y} H618`).join(' ')} />
+  <g clip-path="url(#md-scope)">
+    {shape.map((f, i) => <path d={wave(f)} class={`wv${i === 0 ? ' on' : ''}`} />)}
+  </g>
+  <text x="362" y="52" class="t mine-t" data-mname>OUT · {MODELS[0].short}</text>
+  <text x="608" y="52" text-anchor="end" class="t dim tiny">illustrative</text>
+  <text x="362" y="270" class="t dim" data-mdesc>{MODELS[0].desc}</text>
+</svg>
+
+<script>
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll<SVGSVGElement>('svg.models').forEach((svg) => {
+    const models = JSON.parse(svg.dataset.models!) as { short: string; desc: string }[];
+    const rows = [...svg.querySelectorAll<SVGGElement>('.mrow')];
+    const waves = [...svg.querySelectorAll<SVGPathElement>('.wv')];
+    const name = svg.querySelector('[data-mname]')!;
+    const desc = svg.querySelector('[data-mdesc]')!;
+    const pkt = svg.querySelector('.mpkt')!;
+    let cur = 0;
+    let holdUntil = 0;
+    const replay = (el: Element, cls: string) => {
+      el.classList.remove(cls);
+      void (el as SVGElement).getBoundingClientRect();
+      el.classList.add(cls);
+    };
+    const select = (i: number) => {
+      cur = i;
+      rows.forEach((r, j) => {
+        r.classList.toggle('on', j === i);
+        r.setAttribute('aria-pressed', String(j === i));
+      });
+      waves.forEach((w, j) => w.classList.toggle('on', j === i));
+      name.textContent = `OUT · ${models[i].short}`;
+      desc.textContent = models[i].desc;
+      if (!reduce) { replay(rows[i], 'tap'); replay(pkt, 'go'); }
+    };
+    rows.forEach((r, i) => {
+      r.addEventListener('click', () => { holdUntil = Date.now() + 12000; select(i); });
+      r.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); holdUntil = Date.now() + 12000; select(i); }
+      });
+    });
+    // Cycle through the models while the section is on screen, unless someone just tapped one.
+    if (!reduce) {
+      window.setInterval(() => {
+        const block = svg.closest('.demo-block');
+        if (!block?.classList.contains('in') || block.classList.contains('off') || Date.now() < holdUntil) return;
+        select((cur + 1) % models.length);
+      }, 3600);
+    }
+  });
+</script>
+
+<style>
+  .models { --c: #e8b463; --s: #8fb0c4; width: 100%; height: auto; display: block; }
+  .mine { fill: none; stroke: var(--c); stroke-width: 1.6; filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 8px color-mix(in srgb, var(--c) 50%, transparent)); }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.4s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .t { font-family: var(--f-mono); font-size: 11px; fill: #8d939b; }
+  .t.tiny { font-size: 9px; letter-spacing: -.02em; }
+  .mine-t { fill: var(--c); font-weight: 600; }
+  .mrow { cursor: pointer; outline: none; }
+  .row-bg { fill: #15171a; stroke: #33373d; transition: fill .25s, stroke .25s; }
+  .row-name { font-family: var(--f-body); font-size: 14px; font-weight: 600; fill: #c3c7cd; transition: fill .25s; }
+  .row-desc { font-family: var(--f-mono); font-size: 10.5px; fill: #8d939b; }
+  .sel { fill: #2c2f34; transition: fill .25s; }
+  .rip { fill: none; stroke: var(--c); opacity: 0; }
+  .mrow:hover .row-bg { stroke: #555a62; }
+  .mrow:focus-visible .row-bg { stroke: #fff; stroke-width: 2; }
+  .mrow.on .row-bg { fill: color-mix(in srgb, var(--c) 14%, #15171a); stroke: var(--c); }
+  .mrow.on .row-name { fill: #f4efe6; }
+  .mrow.on .sel { fill: var(--c); filter: drop-shadow(0 0 5px var(--c)); }
+  .mrow.tap .rip { animation: md-rip .7s ease-out; }
+  .link { stroke: var(--c); stroke-opacity: .5; stroke-width: 1.6; stroke-dasharray: 3 5; }
+  .mpkt { fill: #fff; opacity: 0; filter: drop-shadow(0 0 6px var(--c)); }
+  .mpkt.go { animation: md-pkt .55s linear; }
+  .scope { fill: #0a0c0e; stroke: #2a2d32; }
+  .grat { stroke: #1c2622; fill: none; }
+  .wv { fill: none; stroke: var(--c); stroke-width: 2; opacity: 0; filter: drop-shadow(0 0 4px var(--c)); transition: opacity .3s; animation: md-scroll 1.4s linear infinite paused; }
+  .wv.on { opacity: 1; }
+  @keyframes md-rip { from { opacity: .9; r: 6; } to { opacity: 0; r: 26; } }
+  @keyframes md-pkt { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 1; transform: translateX(80px); } }
+  @keyframes md-scroll { to { transform: translateX(-60px); } }
+  @media (prefers-reduced-motion: reduce) { .draw { stroke-dashoffset: 0; transition: none; } }
+</style>

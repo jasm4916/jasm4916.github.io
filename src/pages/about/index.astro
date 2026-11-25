@@ -1,0 +1,64 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import SiteNav from '../../components/SiteNav.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+import RelayScene from '../../components/scenes/RelayScene.astro';
+import TbmScene from '../../components/scenes/TbmScene.astro';
+import HyperloopScene from '../../components/scenes/HyperloopScene.astro';
+import CircuitScene from '../../components/scenes/CircuitScene.astro';
+import { md, text } from '../../lib/content';
+
+const home = (await getEntry('pages', 'home'))!.data;
+const page = (await getEntry('pages', 'about'))!;
+const roles = (await getCollection('experience')).sort((a, b) => a.data.order - b.data.order);
+const scenes = { relay: RelayScene, tbm: TbmScene, hyperloop: HyperloopScene, circuit: CircuitScene } as const;
+---
+<Base title="About · Jacob Smith" description="Jacob Smith's experience: substation communications at Xcel Energy, control-center integration at The Boring Company, CU Hyperloop and Electrical Engineering at CU Boulder." path="/about/">
+  <SiteNav name={home.name ?? ''} tag={home.nav_tag ?? ''} current="about" />
+  <main id="main" class="wrap">
+    <header class="page-head">
+      <p class="eyebrow">{page.data.eyebrow}</p>
+      <h1>{page.data.title}</h1>
+      <div class="prose intro" set:html={md(page.body ?? '')} />
+      <nav class="xp-index" aria-label="Experience">
+        {roles.map((r) => <a href={`#${r.id}`} style={`--k:${r.data.color}`}><span class="dot"></span>{r.data.org}</a>)}
+      </nav>
+    </header>
+
+    {roles.map((r, i) => {
+      const Scene = scenes[r.data.scene];
+      return (
+        <article class={`xp${i % 2 ? ' flip' : ''}`} id={r.id} style={`--k:${r.data.color}`} aria-labelledby={`${r.id}-h`}>
+          <div class="xp-scene">
+            <div class="xp-screen"><Scene metric={r.data.metric} /></div>
+          </div>
+          <div class="xp-text">
+            <p class="xp-meta">{[r.data.dates, r.data.place].filter(Boolean).join(' · ')}</p>
+            <h2 id={`${r.id}-h`}>{r.data.org}</h2>
+            <p class="xp-role">{r.data.role}</p>
+            <p class="xp-lead" set:html={text(r.data.lead)} />
+            <div class="prose xp-list" set:html={md(r.body ?? '')} />
+          </div>
+        </article>
+      );
+    })}
+
+    {(page.data.skills ?? []).length > 0 && (
+      <section class="bench" aria-labelledby="bench-h">
+        <p class="eyebrow" id="bench-h">ON THE BENCH</p>
+        <div class="bench-grid">
+          {(page.data.skills ?? []).map((g) => (
+            <div class="bench-group">
+              <h3>{g.group}</h3>
+              <ul>{g.items.map((s) => <li>{s}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <SiteFooter label={home.contact_label ?? ''} footer={home.footer ?? ''} />
+  </main>
+  <script src="../../scripts/reveal.ts"></script>
+</Base>

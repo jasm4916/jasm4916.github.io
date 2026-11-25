@@ -1,0 +1,24 @@
+# build output
+dist/
+.astro/
+node_modules/
+
+# OS / editor
+.DS_Store
+.vscode/
+.claude/settings.local.json
+
+# Kept local, not published in the public repo:
+# course manual excerpt (the course's material), handover notes, and the résumé source copy
+/reference/
+/Claude outputs/
+/assets/
+
+# local preview config
+.claude/
+# handover notes and the design prototype (kept locally, not published)
+/BUILD_BRIEF.md
+/CLAUDE_CODE_PROMPT.md
+/CONTENT.md
+/design-reference/
+/boards/board-3/board-3.md

@@ -1,0 +1,17 @@
+---
+import { SITE } from '../site.config';
+import { withBase } from '../lib/content';
+interface Props { label: string; footer: string }
+const { label, footer } = Astro.props;
+---
+<section id="contact" class="contact" aria-labelledby="contact-label">
+  <div>
+    <p class="eyebrow" id="contact-label">{label}</p>
+    <a class="mail" href={`mailto:${SITE.email}`}>{SITE.email}</a>
+  </div>
+  <div class="contact-btns">
+    <a class="resume" href={withBase(SITE.resume)} target="_blank" rel="noopener">Résumé PDF</a>
+    {SITE.linkedin && <a href={SITE.linkedin} target="_blank" rel="noopener me">LinkedIn ↗</a>}
+  </div>
+</section>
+<p class="foot">{footer}</p>

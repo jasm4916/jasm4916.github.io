@@ -1,0 +1,119 @@
+---
+// Capstone: the whole amp as a system. Guitar → Daisy Seed3 (NAM neural amp model) → speaker,
+// with the ESP32 touchscreen and its UART link drawn in amber: that's my part.
+// One 8 s story: the slider moves up, a frame travels down the link, the output goes from clean to driven.
+const sine = (x0: number, w: number, y: number, amp: number, period: number, clip = Infinity) => {
+  let d = `M${x0} ${y}`;
+  for (let x = 0; x <= w; x += 2) {
+    const v = Math.max(-clip, Math.min(clip, amp * Math.sin((x / period) * Math.PI * 2)));
+    d += ` L${x0 + x} ${(y - v).toFixed(1)}`;
+  }
+  return d;
+};
+const IN = sine(0, 360, 0, 11, 30);
+const CLEAN = sine(0, 360, 0, 12, 30);
+const DRIVEN = sine(0, 360, 0, 30, 30, 15);
+// NAM network: input → two hidden layers → output, inside the Seed
+const layers = [[262], [296, 296, 296, 296], [338, 338, 338, 338], [372]].map((xs, li) =>
+  xs.map((x, i) => ({ x, y: xs.length === 1 ? 251 : 221 + i * 20, li })),
+);
+const edges = layers.slice(0, -1).flatMap((L, li) => L.flatMap((a) => layers[li + 1].map((b) => `M${a.x} ${a.y} L${b.x} ${b.y}`))).join(' ');
+const nodes = layers.flat();
+const chipXs = [222, 256, 290, 324, 358];
+---
+<svg class="scene amp" viewBox="0 0 640 440" role="img" aria-label="Animation of the capstone amp: a guitar signal runs through a neural amp model on the Daisy Seed3 to a speaker; on the touchscreen above, a slider moves, a frame travels down the UART link to the Seed, and the output changes from clean to driven. The touchscreen and the link are highlighted as Jacob's part.">
+  <!-- MY PART: touchscreen + link (amber) -->
+  <g class="mine neon">
+    <rect class="draw" pathLength="1" x="206" y="22" width="228" height="118" rx="10" />
+    <rect class="draw" pathLength="1" x="214" y="30" width="212" height="102" rx="4" stroke-opacity=".35" />
+    {chipXs.map((x) => <rect class="draw" pathLength="1" x={x} y="40" width="28" height="16" rx="2" stroke-opacity=".75" />)}
+    <circle class="draw" pathLength="1" cx="244" cy="96" r="13" stroke-opacity=".7" />
+    <circle class="draw" pathLength="1" cx="282" cy="96" r="13" stroke-opacity=".7" />
+    <circle class="draw" pathLength="1" cx="320" cy="96" r="13" stroke-opacity=".7" />
+    <path class="draw" pathLength="1" d="M404 44 V122" stroke-opacity=".5" />
+    <path class="link" d="M320 140 V196" />
+  </g>
+  <rect class="slider-knob" x="394" y="104" width="20" height="8" rx="3" />
+  <path class="slider-fill" d="M404 122 V108" />
+  <circle class="pkt" cx="320" cy="140" r="4.5" />
+  <path class="bracket" d="M190 22 H180 V196 H190" />
+  <text x="174" y="104" text-anchor="end" class="t mine-t">MY PART</text>
+  <text x="174" y="120" text-anchor="end" class="t dim">UI + LINK</text>
+  <text x="330" y="172" class="t mine-t">UART · COBS + CRC-16</text>
+  <text x="214" y="16" class="t dim">ESP32-S3 TOUCHSCREEN · LVGL</text>
+
+  <!-- the rest of the amp (cool grey) -->
+  <g class="sys neon">
+    <rect class="draw" pathLength="1" x="200" y="196" width="240" height="112" rx="6" />
+    <path class="draw" pathLength="1" d={Array.from({ length: 20 }, (_, i) => `M${212 + i * 11.5} 196 v-6 M${212 + i * 11.5} 308 v6`).join(' ')} stroke-opacity=".5" />
+    <path d={edges} class="edges" />
+    {nodes.map((n) => <circle cx={n.x} cy={n.y} r="4.2" class={`node l${n.li}`} />)}
+    <!-- guitar -->
+    <g transform="translate(78 300) rotate(-32)">
+      <path class="draw" pathLength="1" d="M0 -26 C16 -30 30 -22 30 -6 C30 2 24 8 26 16 C28 30 16 42 0 42 C-16 42 -28 30 -26 16 C-24 8 -30 2 -30 -6 C-30 -22 -16 -30 0 -26 Z" />
+      <circle class="draw" pathLength="1" cx="0" cy="2" r="8" />
+      <path class="draw" pathLength="1" d="M-4 -26 V-104 H4 V-26 M-7 -104 H7 V-124 H-7 Z M-4 30 H4" />
+    </g>
+    <path class="draw cable" pathLength="1" d="M96 338 C140 360 160 262 200 262" />
+    <!-- speaker cab -->
+    <rect class="draw" pathLength="1" x="478" y="196" width="128" height="140" rx="8" />
+    <g class="cone"><circle cx="542" cy="266" r="44" /><circle cx="542" cy="266" r="20" /><circle cx="542" cy="266" r="6" /></g>
+    <path class="draw cable" pathLength="1" d="M440 262 H478" />
+  </g>
+  <text x="208" y="214" class="t dim">DAISY SEED3</text>
+  <text x="432" y="214" text-anchor="end" class="t sys-t">NAM AMP MODEL</text>
+  <text x="488" y="354" class="t dim">OUT</text>
+  <text x="26" y="376" class="t sys-t">GUITAR</text>
+
+  <!-- signal: in (clean) and out (clean → driven when the gain goes up) -->
+  <g class="traces">
+    <rect x="200" y="350" width="112" height="64" rx="5" class="tw" />
+    <rect x="328" y="350" width="112" height="64" rx="5" class="tw" />
+    <svg x="200" y="350" width="112" height="64" viewBox="0 -32 112 64"><path d={IN} class="wv in" /></svg>
+    <svg x="328" y="350" width="112" height="64" viewBox="0 -32 112 64">
+      <path d={CLEAN} class="wv out clean" /><path d={DRIVEN} class="wv out driven" />
+    </svg>
+    <text x="206" y="428" class="t dim">IN</text>
+    <text x="334" y="428" class="t dim">OUT</text>
+  </g>
+</svg>
+
+<style>
+  .amp { --c: #e8b463; --s: #8fb0c4; width: 100%; height: auto; display: block; }
+  .neon { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .mine { stroke: var(--c); filter: drop-shadow(0 0 2px var(--c)) drop-shadow(0 0 8px color-mix(in srgb, var(--c) 50%, transparent)); }
+  .sys { stroke: var(--s); filter: drop-shadow(0 0 2px color-mix(in srgb, var(--s) 70%, transparent)); }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.6s cubic-bezier(.6, 0, .2, 1); }
+  :global(.in) .draw { stroke-dashoffset: 0; }
+  .cable { stroke-opacity: .7; }
+  .link { stroke-dasharray: 3 6; stroke-width: 2; animation: am-link .8s linear infinite paused; }
+  .bracket { fill: none; stroke: var(--c); stroke-opacity: .5; stroke-width: 1.4; }
+  .t { font-family: var(--f-mono); font-size: 11px; fill: #8d939b; }
+  .mine-t { fill: var(--c); font-weight: 600; }
+  .sys-t { fill: var(--s); }
+  .edges { stroke: var(--s); stroke-opacity: .16; stroke-width: 1; }
+  .node { fill: #0a0c0e; stroke: var(--s); stroke-width: 1.4; animation: am-node 1.2s ease-in-out infinite paused; }
+  .node.l1 { animation-delay: .15s; } .node.l2 { animation-delay: .3s; } .node.l3 { animation-delay: .45s; }
+  .cone { fill: none; stroke: var(--s); transform-origin: 542px 266px; animation: am-cone .26s ease-in-out infinite alternate paused, am-cone-amp 8s linear infinite paused; }
+  .slider-knob { fill: var(--c); filter: drop-shadow(0 0 5px var(--c)); animation: am-knob 8s ease-in-out infinite paused; }
+  .slider-fill { stroke: var(--c); stroke-width: 3; stroke-linecap: round; fill: none; transform-origin: 404px 122px; transform-box: view-box; animation: am-fill 8s ease-in-out infinite paused; }
+  .pkt { fill: #fff; filter: drop-shadow(0 0 6px var(--c)); opacity: 0; animation: am-pkt 8s linear infinite paused; }
+  .tw { fill: #0a0c0e; stroke: #2a2d32; }
+  .wv { fill: none; stroke-width: 1.8; animation: am-scroll 1.1s linear infinite paused; }
+  .wv.in { stroke: var(--s); }
+  .wv.out { stroke: var(--c); filter: drop-shadow(0 0 3px var(--c)); }
+  .wv.clean { animation: am-scroll 1.1s linear infinite paused, am-clean 8s linear infinite paused; }
+  .wv.driven { opacity: 0; animation: am-scroll 1.1s linear infinite paused, am-driven 8s linear infinite paused; }
+  @keyframes am-link { to { stroke-dashoffset: -9; } }
+  @keyframes am-node { 0%, 100% { fill: #0a0c0e; } 45% { fill: var(--s); filter: drop-shadow(0 0 5px var(--s)); } }
+  @keyframes am-cone { from { transform: scale(1); } to { transform: scale(1.035); } }
+  @keyframes am-cone-amp { 0%, 50% { stroke-opacity: .7; } 54%, 88% { stroke-opacity: 1; stroke-width: 2.2; } 92%, 100% { stroke-opacity: .7; } }
+  /* slider: low until 35%, up by 45%, holds, back down 85–95% */
+  @keyframes am-knob { 0%, 35% { transform: translateY(0); } 45%, 85% { transform: translateY(-54px); } 95%, 100% { transform: translateY(0); } }
+  @keyframes am-fill { 0%, 35% { transform: scaleY(1); } 45%, 85% { transform: scaleY(4.9); } 95%, 100% { transform: scaleY(1); } }
+  @keyframes am-pkt { 0%, 44% { opacity: 0; transform: translateY(0); } 45% { opacity: 1; transform: translateY(0); } 52% { opacity: 1; transform: translateY(56px); } 53%, 94% { opacity: 0; transform: translateY(56px); } 94.5% { opacity: 1; transform: translateY(0); } 99% { opacity: 1; transform: translateY(56px); } 100% { opacity: 0; } }
+  @keyframes am-scroll { to { transform: translateX(-60px); } }
+  @keyframes am-clean { 0%, 52% { opacity: 1; } 55%, 97% { opacity: 0; } 100% { opacity: 1; } }
+  @keyframes am-driven { 0%, 52% { opacity: 0; } 55%, 97% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .draw { stroke-dashoffset: 0; transition: none; } }
+</style>
